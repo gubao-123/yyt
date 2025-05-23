@@ -12,7 +12,7 @@
         <form id="loginForm">
             <div class="form-group">
                 <label for="username">用户名:</label>
-                <input type="text" id="username" required>
+                <input type="text" id="username" autocomplete="username" required>
             </div>
             <div class="form-group">
                 <label for="password">密码:</label>
@@ -41,29 +41,30 @@
         </div>
         
         <div class="question-container">
-            <div class="question-text" id="questionTitle">
-                请选择题型并点击"开始学习"
+            <div class="question-content">
+                <div class="question-text" id="questionTitle">
+                    请选择题型并点击"开始学习"
+                </div>
+                <div class="question-image" id="drawingCanvas">
+                    <!-- 几何图形将在这里显示 -->
+                </div>
+                <div class="reference-answers" id="referenceAnswers" style="display: none;">
+                    <!-- 参考答案将在这里显示 -->
+                </div>
             </div>
             
             <div class="answer-inputs">
                 <input type="text" placeholder="答案1" id="answer1">
                 <input type="text" placeholder="答案2" id="answer2">
                 <input type="text" placeholder="答案3" id="answer3">
-                <input type="text" placeholder="答案4" id="answer4">
-                
-                <div class="reference-answers" id="referenceAnswers" style="display: none;">
-                    <!-- 参考答案将在这里显示 -->
-                </div>
-            </div>
+                <input type="text" placeholder="答案4" id="answer4">                
+             </div>
             
             <div class="handwriting-area">
-                <div class="drawing-area" id="drawingCanvas">
-                    <!-- 几何图形将在这里显示 -->
-                </div>
-                <canvas id="handwritingCanvas"></canvas>
+                 <canvas id="handwritingCanvas"></canvas>
             </div>
         </div>
-    </div>
+      </div>
 
     <script src="script.js"></script>
 </body>

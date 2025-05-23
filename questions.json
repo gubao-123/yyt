@@ -1,14 +1,15 @@
 ﻿[
     {
         "id": 1,
-        "title": "一个三角形的底边长是8厘米，对应的高是5厘米，求它的面积。",
+        "title": "一个三角形的底边长是8厘米，对应的高是5厘米，如图，求它的面积。以及把它的另外几个高画出来",
         "answer1": "面积 = 底 × 高 ÷ 2 = 8 × 5 ÷ 2 = 20平方厘米",
         "answer2": "",
         "answer3": "",
         "answer4": "",
         "dalei": "三角形",
         "state": "未学",
-        "xiaolei": "几何"
+        "xiaolei": "几何",
+        "picture": ""
     },
     {
         "id": 2,
@@ -19,7 +20,8 @@
         "answer4": "",
         "dalei": "正方形",
         "state": "未学",
-        "xiaolei": "几何"
+        "xiaolei": "几何",
+        "picture": ""
     },
     {
         "id": 3,
@@ -31,7 +33,8 @@
         "dalei": "一元一次方程",
         "state": "未学",
         "xiaolei": "方程运算",
-        "dalei1": "方程运算"
+        "xiaolei": "几何",
+        "picture": ""
     },
     {
         "id": 4,
@@ -42,7 +45,8 @@
         "answer4": "",
         "dalei": "一元一次方程",
         "state": "未学",
-        "xiaolei": "方程运算"
+        "xiaolei": "几何",
+        "picture": ""
     },
     {
         "id": 5,
@@ -53,7 +57,8 @@
         "answer4": "",
         "dalei": "鸡鸭同笼",
         "state": "未学",
-        "xiaolei": "方程运算"
+        "xiaolei": "几何",
+        "picture": ""
     },
     {
         "id": 6,
@@ -64,7 +69,8 @@
         "answer4": "",
         "dalei": "鸡鸭同笼",
         "state": "未学",
-        "xiaolei": "方程运算"
+        "xiaolei": "几何",
+        "picture": ""
     },
     {
         "id": 7,
@@ -75,7 +81,8 @@
         "answer4": "",
         "dalei": "年龄问题",
         "state": "未学",
-        "xiaolei": "方程运算"
+        "xiaolei": "几何",
+        "picture": ""
     },
     {
         "id": 8,
@@ -86,7 +93,8 @@
         "answer4": "",
         "dalei": "年龄问题",
         "state": "未学",
-        "xiaolei": "方程运算"
+        "xiaolei": "几何",
+        "picture": ""
     },
     {
         "id": 9,
@@ -97,7 +105,8 @@
         "answer4": "",
         "dalei": "年龄问题",
         "state": "未学",
-        "xiaolei": "方程运算"
+        "xiaolei": "几何",
+        "picture": ""
     },
     {
         "id": 10,
@@ -108,7 +117,8 @@
         "answer4": "",
         "dalei": "年龄问题",
         "state": "未学",
-        "xiaolei": "方程运算"
+        "xiaolei": "几何",
+        "picture": ""
     },
     {
         "id": 11,
@@ -119,7 +129,8 @@
         "answer4": "",
         "dalei": "年龄问题",
         "state": "未学",
-        "xiaolei": "方程运算"
+        "xiaolei": "几何",
+        "picture": ""
     },
     {
         "id": 12,
@@ -130,6 +141,7 @@
         "answer4": "",
         "dalei": "年龄问题",
         "state": "未学",
-        "xiaolei": "方程运算"
+        "xiaolei": "几何",
+        "picture": ""
     }
 ]

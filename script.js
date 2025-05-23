@@ -4,33 +4,30 @@ let currentCategory = '';
 let questions = [];
 let canvas, ctx;
 let currentQuestions = [];
+let isDrawing = false;
+let lastX = 0;
+let lastY = 0;
 
 // DOM加载完成后初始化
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM已加载'); // 调试日志
+    console.log('DOM已加载');
     
     // 初始化登录表单
     const loginForm = document.getElementById('loginForm');
     if (loginForm) {
         loginForm.addEventListener('submit', function(e) {
             e.preventDefault();
-            console.log('登录表单已提交'); // 调试日志
-            
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
             
             if (validateLogin(username, password)) {
-                console.log('登录验证通过'); // 调试日志
                 document.getElementById('loginContainer').style.display = 'none';
                 document.getElementById('appContainer').style.display = 'flex';
                 loadQuestions();
             } else {
-                console.log('登录验证失败'); // 调试日志
                 document.getElementById('loginError').textContent = '用户名或密码错误！';
             }
         });
-    } else {
-        console.error('未找到登录表单'); // 调试日志
     }
     
     // 初始化控制按钮
@@ -40,7 +37,7 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('showAnswer')?.addEventListener('click', showAnswer);
     document.getElementById('nextQuestion')?.addEventListener('click', nextQuestion);
     
-    // 初始化手写板
+    // 初始化手写板（使用改进后的初始化方式）
     initHandwritingCanvas();
 });
 
@@ -56,27 +53,17 @@ function validateLogin(username, password) {
 
 // 加载题目数据
 function loadQuestions() {
-    console.log('开始加载题目数据'); // 调试日志
-    
     fetch('questions.json')
         .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP错误! 状态: ${response.status}`);
-            }
+            if (!response.ok) throw new Error(`HTTP错误! 状态: ${response.status}`);
             return response.text();
         })
         .then(text => {
-            console.log('收到JSON数据:', text.substring(0, 100)); // 调试日志
-            
             // 处理BOM字符
-            if (text.charCodeAt(0) === 0xFEFF) {
-                text = text.substring(1);
-            }
+            if (text.charCodeAt(0) === 0xFEFF) text = text.substring(1);
             
             try {
-                const data = JSON.parse(text);
-                console.log('成功解析JSON数据'); // 调试日志
-                questions = data;
+                questions = JSON.parse(text);
                 initializeApp();
             } catch (e) {
                 console.error('JSON解析错误:', e);
@@ -91,26 +78,17 @@ function loadQuestions() {
 
 // 初始化应用
 function initializeApp() {
-    console.log('初始化应用'); // 调试日志
     populateCategorySelect();
 }
 
 // 填充题型选择下拉框
 function populateCategorySelect() {
     const select = document.getElementById('categorySelect');
-    if (!select) {
-        console.error('未找到题型选择下拉框');
-        return;
-    }
+    if (!select) return;
     
-    // 获取所有题型并去重
     const categories = [...new Set(questions.map(q => q.dalei).filter(Boolean))];
-    console.log('可用题型:', categories); // 调试日志
-    
-    // 清空现有选项
     select.innerHTML = '<option value="">选择题型</option>';
     
-    // 添加题型选项
     categories.forEach(category => {
         const option = document.createElement('option');
         option.value = category;
@@ -146,9 +124,7 @@ function startLearning() {
 // 显示题目
 function displayQuestion(question) {
     const questionTitle = document.getElementById('questionTitle');
-    if (questionTitle) {
-        questionTitle.textContent = question.title || '无题目内容';
-    }
+    if (questionTitle) questionTitle.textContent = question.title || '无题目内容';
     
     // 清空答案输入框
     ['answer1', 'answer2', 'answer3', 'answer4'].forEach(id => {
@@ -170,8 +146,9 @@ function displayQuestion(question) {
         
         if (question.id) {
             const img = document.createElement('img');
-            img.src = `picture/${question.id}.png`;
+            img.src = question.picture || `picture/${question.id}.png`;
             img.onerror = function() {
+                console.log('图片加载失败:', this.src);
                 this.style.display = 'none';
             };
             img.style.maxWidth = '100%';
@@ -183,6 +160,9 @@ function displayQuestion(question) {
     
     // 清空手写板
     clearHandwriting();
+    
+    // 确保手写板重新初始化
+    initHandwritingCanvas(true);
 }
 
 // 更新学习统计
@@ -205,13 +185,8 @@ function updateStats() {
 function nextQuestion() {
     if (currentQuestionIndex === -1 || currentQuestions.length === 0) return;
     
-    // 标记为已学
     currentQuestions[currentQuestionIndex].state = '已学';
-    
-    // 更新统计
     updateStats();
-    
-    // 显示下一题
     startLearning();
 }
 
@@ -229,7 +204,6 @@ function showAnswer() {
     
     let answersHTML = '<div class="answers-title"><strong>参考答案</strong></div>';
     
-    // 显示所有非空参考答案
     if (question.answer1 && question.answer1.trim() !== '') 
         answersHTML += `<div class="answer-item">${escapeHtml(question.answer1)}</div>`;
     if (question.answer2 && question.answer2.trim() !== '') 
@@ -270,7 +244,7 @@ function resetProgress() {
     }
 }
 
-// 初始化手写板
+// 修改后的手写板初始化函数
 function initHandwritingCanvas() {
     canvas = document.getElementById('handwritingCanvas');
     if (!canvas) {
@@ -278,101 +252,139 @@ function initHandwritingCanvas() {
         return;
     }
     
-    // 如果已经初始化过，先清除旧的事件监听器
-    const newCanvas = canvas.cloneNode(true);
-    canvas.parentNode.replaceChild(newCanvas, canvas);
-    canvas = newCanvas;
-    
-    ctx = canvas.getContext('2d');
-    
-    // 设置画布大小
-    function resizeCanvas() {
-        const container = document.querySelector('.handwriting-area');
-        if (!container) return;
-        
-        canvas.width = container.offsetWidth;
-        canvas.height = container.offsetHeight;
-        
-        // 设置画布样式
-        ctx.strokeStyle = '#000';
-        ctx.lineWidth = 2;
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-    }
-    
-    window.addEventListener('resize', resizeCanvas);
-    resizeCanvas();
-    
-    // 手写功能
-    let isDrawing = false;
-    let lastX = 0;
-    let lastY = 0;
-    
-    function getCanvasCoordinates(e) {
-        const rect = canvas.getBoundingClientRect();
-        return {
-            x: e.clientX - rect.left,
-            y: e.clientY - rect.top
-        };
-    }
-    
-    function startDrawing(e) {
-        isDrawing = true;
-        const coords = getCanvasCoordinates(e);
-        lastX = coords.x;
-        lastY = coords.y;
-    }
-    
-    function draw(e) {
-        if (!isDrawing) return;
-        
-        const coords = getCanvasCoordinates(e);
-        
-        ctx.beginPath();
-        ctx.moveTo(lastX, lastY);
-        ctx.lineTo(coords.x, coords.y);
-        ctx.stroke();
-        
-        lastX = coords.x;
-        lastY = coords.y;
-    }
-    
-    function stopDrawing() {
-        isDrawing = false;
-    }
-    
-    // 鼠标事件
-    canvas.addEventListener('mousedown', startDrawing);
-    canvas.addEventListener('mousemove', draw);
-    canvas.addEventListener('mouseup', stopDrawing);
-    canvas.addEventListener('mouseout', stopDrawing);
-    
-    // 触摸事件
-    canvas.addEventListener('touchstart', function(e) {
-        e.preventDefault();
-        const touch = e.touches[0];
-        const mouseEvent = new MouseEvent('mousedown', {
-            clientX: touch.clientX,
-            clientY: touch.clientY
-        });
-        canvas.dispatchEvent(mouseEvent);
+    // 确保画布可见后再初始化
+    const observer = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting) {
+            setupCanvas();
+            observer.disconnect();
+        }
     });
+    observer.observe(canvas);
     
-    canvas.addEventListener('touchmove', function(e) {
-        e.preventDefault();
-        const touch = e.touches[0];
-        const mouseEvent = new MouseEvent('mousemove', {
-            clientX: touch.clientX,
-            clientY: touch.clientY
-        });
-        canvas.dispatchEvent(mouseEvent);
-    });
+    function setupCanvas() {
+        ctx = canvas.getContext('2d');
+        
+        // 设置画布大小
+        function resizeCanvas() {
+            const container = document.querySelector('.handwriting-area');
+            if (!container) return;
+            
+            const rect = container.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+            
+            // 设置画布样式
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 2;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            
+            // 强制重绘
+            canvas.style.display = 'none';
+            canvas.offsetHeight; // 触发重排
+            canvas.style.display = 'block';
+        }
+        
+        // 初始调整大小
+        resizeCanvas();
+        
+        // 窗口大小改变时调整画布
+        window.addEventListener('resize', resizeCanvas);
+        
+        // 鼠标事件处理
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', endDrawing);
+        canvas.addEventListener('mouseout', endDrawing);
+        
+        // 触摸事件处理
+        canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+        canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+        canvas.addEventListener('touchend', endDrawing);
+        
+        console.log('手写板初始化完成');
+    }
+}
+
+// 开始绘制
+function startDrawing(e) {
+    if (!canvas || !ctx) return;
     
-    canvas.addEventListener('touchend', function(e) {
-        e.preventDefault();
-        const mouseEvent = new MouseEvent('mouseup', {});
-        canvas.dispatchEvent(mouseEvent);
+    isDrawing = true;
+    const pos = getCanvasPosition(e);
+    lastX = pos.x;
+    lastY = pos.y;
+    
+    // 开始新的路径
+    ctx.beginPath();
+    ctx.moveTo(lastX, lastY);
+}
+
+// 绘制中
+function draw(e) {
+    if (!isDrawing || !canvas || !ctx) return;
+    
+    const pos = getCanvasPosition(e);
+    
+    ctx.lineTo(pos.x, pos.y);
+    ctx.stroke();
+    
+    lastX = pos.x;
+    lastY = pos.y;
+}
+
+// 结束绘制
+function endDrawing() {
+    isDrawing = false;
+}
+
+// 获取画布坐标
+function getCanvasPosition(e) {
+    if (!canvas) return { x: 0, y: 0 };
+    
+    const rect = canvas.getBoundingClientRect();
+    let clientX, clientY;
+    
+    if (e.touches) {
+        // 触摸事件
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+    } else {
+        // 鼠标事件
+        clientX = e.clientX;
+        clientY = e.clientY;
+    }
+    
+    return {
+        x: clientX - rect.left,
+        y: clientY - rect.top
+    };
+}
+
+// 触摸开始
+function handleTouchStart(e) {
+    e.preventDefault();
+    if (!canvas) return;
+    
+    const touch = e.touches[0];
+    const mouseEvent = new MouseEvent('mousedown', {
+        clientX: touch.clientX,
+        clientY: touch.clientY
     });
+    canvas.dispatchEvent(mouseEvent);
+}
+
+// 触摸移动
+function handleTouchMove(e) {
+    e.preventDefault();
+    if (!canvas) return;
+    
+    const touch = e.touches[0];
+    const mouseEvent = new MouseEvent('mousemove', {
+        clientX: touch.clientX,
+        clientY: touch.clientY
+    });
+    canvas.dispatchEvent(mouseEvent);
 }
 
 // 清空手写板
