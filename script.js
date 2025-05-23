@@ -146,7 +146,7 @@ function displayQuestion(question) {
         
         if (question.id) {
             const img = document.createElement('img');
-            img.src = question.picture || `picture/${question.id}.png`;
+            img.src = question.picture || `picture1/${question.id}.png`;
             img.onerror = function() {
                 console.log('图片加载失败:', this.src);
                 this.style.display = 'none';
