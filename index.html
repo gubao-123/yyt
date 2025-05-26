@@ -39,32 +39,39 @@
             <button id="showAnswer">显示答案</button>
             <button id="nextQuestion">下一道</button>
         </div>
-        
+            
+    <!-- 新增内容区域包裹 -->
+    <div class="content-area">
+        <!-- 左侧问题区域 -->
         <div class="question-container">
             <div class="question-content">
                 <div class="question-text" id="questionTitle">
                     请选择题型并点击"开始学习"
                 </div>
                 <div class="question-image" id="drawingCanvas">
-                    <!-- 几何图形将在这里显示 -->
+                           <!-- 几何图形将在这里显示 -->
                 </div>
                 <div class="reference-answers" id="referenceAnswers" style="display: none;">
                     <!-- 参考答案将在这里显示 -->
                 </div>
             </div>
+         </div>
             
-            <div class="answer-inputs">
-                <input type="text" placeholder="答案1" id="answer1">
-                <input type="text" placeholder="答案2" id="answer2">
-                <input type="text" placeholder="答案3" id="answer3">
-                <input type="text" placeholder="答案4" id="answer4">                
+        <!-- 右侧区域 -->
+        <div class="right-panel">
+              <div class="answer-inputs">
+                   <input type="text" placeholder="答案1" id="answer1">
+                   <input type="text" placeholder="答案2" id="answer2">
+                   <input type="text" placeholder="答案3" id="answer3">
+                   <input type="text" placeholder="答案4" id="answer4">                
              </div>
             
-            <div class="handwriting-area">
+             <div class="handwriting-area">
                  <canvas id="handwritingCanvas"></canvas>
-            </div>
+             </div>
         </div>
-      </div>
+    </div>
+</div>
 
     <script src="script.js"></script>
 </body>

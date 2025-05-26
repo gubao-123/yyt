@@ -44,7 +44,7 @@ document.addEventListener('DOMContentLoaded', function() {
 // 验证登录
 function validateLogin(username, password) {
     const accounts = [
-        { username: 'teacher1', password: '123456' },
+        { username: 'ym', password: 'ym' },
         { username: 'teacher2', password: '123456' },
         { username: 'student1', password: '123456' }
     ];
@@ -110,22 +110,39 @@ function startLearning() {
         return;
     }
     
-    const unansweredQuestions = currentQuestions.filter(q => q.state !== '已学');
+    const unansweredQuestions = questions.filter(q => q.dalei === currentCategory && q.state !== '已学');
     
     if (unansweredQuestions.length === 0) {
         alert('该题型所有题目已完成！');
         return;
     }
     
-    currentQuestionIndex = Math.floor(Math.random() * unansweredQuestions.length);
-    displayQuestion(unansweredQuestions[currentQuestionIndex]);
+ // 随机选择一个未学习的题目
+    const randomIndex = Math.floor(Math.random() * unansweredQuestions.length);
+    const selectedQuestion = unansweredQuestions[randomIndex];
+    
+    // 在完整题目数组中查找该题目的索引
+    currentQuestionIndex = questions.findIndex(q => q.id === selectedQuestion.id);
+    
+    if (currentQuestionIndex === -1) {
+        alert('题目索引错误！');
+        return;
+    }
+
+    displayQuestion(questions[currentQuestionIndex]);
 }
 
 // 显示题目
 function displayQuestion(question) {
     const questionTitle = document.getElementById('questionTitle');
-    if (questionTitle) questionTitle.textContent = question.title || '无题目内容';
-    
+    if (questionTitle) {
+        // 创建包含难度系数的标题
+        const difficulty = question.xiaolei ? `难度系数(${question.xiaolei})` : '难度系数(未知)';
+        questionTitle.innerHTML = `<div class="question-header">
+            <span class="difficulty">${difficulty}</span>
+            <div class="question-content">${question.title || '无题目内容'}</div>
+        </div>`;
+    }   
     // 清空答案输入框
     ['answer1', 'answer2', 'answer3', 'answer4'].forEach(id => {
         const input = document.getElementById(id);
@@ -173,47 +190,67 @@ function updateStats() {
     const totalCount = document.getElementById('totalCount');
     
     if (learnedCount && totalCount) {
-        const total = currentQuestions.length;
-        const learned = currentQuestions.filter(q => q.state === '已学').length;
+        // 获取当前题型的所有题目
+        const categoryQuestions = questions.filter(q => q.dalei === currentCategory);
+        const total = categoryQuestions.length;
+        const learned = categoryQuestions.filter(q => q.state === '已学').length;
         
         learnedCount.textContent = learned;
         totalCount.textContent = total;
     }
 }
 
+
 // 下一题
 function nextQuestion() {
     if (currentQuestionIndex === -1 || currentQuestions.length === 0) return;
     
-    currentQuestions[currentQuestionIndex].state = '已学';
+    // 更新题目状态
+    questions[currentQuestionIndex].state = '已学';
+    
+    // 更新当前题型的问题列表状态
+    currentQuestions = questions.filter(q => q.dalei === currentCategory);
+
     updateStats();
     startLearning();
 }
 
-// 显示答案
+// 修改showAnswer函数，确保显示当前题目的答案
 function showAnswer() {
-    if (currentQuestionIndex === -1 || currentQuestions.length === 0) {
+    if (currentQuestionIndex === -1 || questions.length === 0) {
         alert('请先开始学习题目！');
         return;
     }
     
-    const question = currentQuestions[currentQuestionIndex];
+    const question = questions[currentQuestionIndex];
     const refAnswers = document.getElementById('referenceAnswers');
     
     if (!refAnswers) return;
+
+    // 清空之前的内容
+    refAnswers.innerHTML = '';
+        // 创建标题
+    const title = document.createElement('div');
+    title.className = 'answers-title';
+    title.innerHTML = `<strong>参考答案 (题目ID: ${question.id || '无'})</strong>`;
+    refAnswers.appendChild(title);
     
-    let answersHTML = '<div class="answers-title"><strong>参考答案</strong></div>';
     
-    if (question.answer1 && question.answer1.trim() !== '') 
-        answersHTML += `<div class="answer-item">${escapeHtml(question.answer1)}</div>`;
-    if (question.answer2 && question.answer2.trim() !== '') 
-        answersHTML += `<div class="answer-item">${escapeHtml(question.answer2)}</div>`;
-    if (question.answer3 && question.answer3.trim() !== '') 
-        answersHTML += `<div class="answer-item">${escapeHtml(question.answer3)}</div>`;
-    if (question.answer4 && question.answer4.trim() !== '') 
-        answersHTML += `<div class="answer-item">${escapeHtml(question.answer4)}</div>`;
+    // 添加参考答案
+    const addAnswer = (answer, index) => {
+        if (answer && answer.trim() !== '') {
+            const answerEl = document.createElement('div');
+            answerEl.className = 'answer-item';
+            answerEl.textContent = `答案${index}: ${answer}`;
+            refAnswers.appendChild(answerEl);
+        }
+    };
     
-    refAnswers.innerHTML = answersHTML;
+    addAnswer(question.answer1, 1);
+    addAnswer(question.answer2, 2);
+    addAnswer(question.answer3, 3);
+    addAnswer(question.answer4, 4);
+    
     refAnswers.style.display = 'block';
 }
 
@@ -236,9 +273,16 @@ function resetProgress() {
     }
     
     if (confirm('确定要重置该题型的学习进度吗？所有已学题目将标记为未学。')) {
-        currentQuestions.forEach(q => {
-            q.state = '未学';
+        // 重置当前题型的所有题目状态
+        questions.forEach(q => {
+            if (q.dalei === currentCategory) {
+                q.state = '未学';
+            }
         });
+        
+        // 更新当前题型的问题列表
+        currentQuestions = questions.filter(q => q.dalei === currentCategory);
+        
         updateStats();
         alert('进度已重置！');
     }
