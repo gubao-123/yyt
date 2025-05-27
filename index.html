@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>数学应用题教学</title>
+    <title>学霸是这样练成的</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -25,6 +25,9 @@
 
     <div class="app-container" id="appContainer" style="display: none;">
         <div class="control-panel">
+             <select id="subjectSelect">
+                <option value="">选择科目</option>
+            </select>
             <select id="categorySelect">
                 <option value="">选择题型</option>
             </select>
@@ -34,10 +37,33 @@
             </div>
             
             <button id="startLearning">开始学习</button>
-            <button id="resetProgress">重置进度</button>
-            <button id="clearHandwriting">清除手写</button>
+            <button id="resetProgress">重置进度</button>          
             <button id="showAnswer">显示答案</button>
             <button id="nextQuestion">下一道</button>
+            <!-- 新增手写笔按钮 -->
+            <button id="penButton">手写笔</button>
+            <select id="penSize">
+                 <option value="2">小</option>
+                 <option value="4" selected>中</option>
+                 <option value="6">大</option>
+            </select>
+            <select id="penColor">
+                 <option value="white" selected>白</option>
+                 <option value="black">黑</option>
+                 <option value="red">红</option>
+                 <option value="blue">蓝</option>
+                 <option value="yellow">黄</option>
+             <option value="green">绿</option>
+             </select>
+            <button id="clearHandwriting">清除手写</button>
+            <!-- 新增橡皮擦按钮 -->
+            <button id="eraserButton">橡皮擦</button>
+            <select id="eraserSize">
+                       <option value="20">小</option>
+                       <option value="40" selected>中</option>
+                       <option value="60">大</option>
+            </select>
+
         </div>
             
     <!-- 新增内容区域包裹 -->

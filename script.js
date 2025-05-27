@@ -7,8 +7,254 @@ let currentQuestions = [];
 let isDrawing = false;
 let lastX = 0;
 let lastY = 0;
+let isErasing = false;
+let eraserSize = 40;
+let eraserCursor = null;
+let isPenActive = false;
+let currentPenSize = 4;
+let currentPenColor = 'white';
+const defaultPenSize = 4;
+const defaultPenColor = 'white';
 
-// DOM加载完成后初始化
+// ========== 工具函数 ==========
+function updateEraserCursor() {
+    const size = eraserSize;
+    eraserCursor = `url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}"><circle cx="${size/2}" cy="${size/2}" r="${size/2-1}" fill="white" stroke="black" stroke-width="1"/></svg>') ${size/2} ${size/2}, auto`;
+}
+
+ // 橡皮擦功能函数
+function toggleEraser() {
+    isErasing = !isErasing;
+    const eraserButton = document.getElementById('eraserButton');
+    
+    if (isErasing) {
+        eraserButton.classList.add('active');
+        canvas.style.cursor = eraserCursor;
+       // 确保退出笔模式使橡皮擦与手写笔兼容
+        if (isPenActive) {
+            togglePen();
+        }
+    } else {
+        eraserButton.classList.remove('active');
+        canvas.style.cursor = 'crosshair';
+         }
+     }
+
+// ========== 手写板相关函数 ==========
+function initHandwritingCanvas() {
+    canvas = document.getElementById('handwritingCanvas');
+    if (!canvas) {
+        console.error('未找到手写板画布');
+        return;
+    }
+    
+    // 确保画布可见后再初始化
+    const observer = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting) {
+            setupCanvas();
+            observer.disconnect();
+        }
+    });
+    observer.observe(canvas);
+    
+    function setupCanvas() {
+        ctx = canvas.getContext('2d');
+
+    // 初始化橡皮擦光标
+    updateEraserCursor();  // 现在这个函数已经定义
+        
+        // 设置画布大小
+        function resizeCanvas() {
+            const container = document.querySelector('.handwriting-area');
+            if (!container) return;
+            
+            const rect = container.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+            
+            // 设置画布样式
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 2;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            
+            // 强制重绘
+            canvas.style.display = 'none';
+            canvas.offsetHeight; // 触发重排
+            canvas.style.display = 'block';
+        }
+        
+        // 初始调整大小
+        resizeCanvas();
+        
+        // 窗口大小改变时调整画布
+        window.addEventListener('resize', resizeCanvas);
+
+        
+        // 鼠标事件处理
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', endDrawing);
+        canvas.addEventListener('mouseout', endDrawing);
+        
+        // 触摸事件处理
+        canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+        canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+        canvas.addEventListener('touchend', endDrawing);
+        
+        console.log('手写板初始化完成');
+    }
+}
+
+// 手写笔功能函数
+function togglePen() {
+    isPenActive = !isPenActive;
+    const penButton = document.getElementById('penButton');
+    
+    if (isPenActive) {
+        penButton.classList.add('active');
+        // 应用选择的笔设置
+        updatePenSettings();
+        // 确保退出橡皮擦模式
+        if (isErasing) {
+            toggleEraser();
+        }
+    } else {
+        penButton.classList.remove('active');
+        // 恢复默认设置
+        ctx.strokeStyle = defaultPenColor;
+        ctx.lineWidth = defaultPenSize;
+        canvas.style.cursor = 'crosshair';
+    }
+}
+
+function updatePenSettings() {
+    if (isPenActive) {
+        ctx.strokeStyle = currentPenColor;
+        ctx.lineWidth = currentPenSize;
+        // 更新光标预览
+        const size = Math.max(currentPenSize * 2, 10); // 最小10px
+        canvas.style.cursor = `url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}"><circle cx="${size/2}" cy="${size/2}" r="${currentPenSize/2}" fill="${currentPenColor}" stroke="${currentPenColor === 'white' ? 'black' : 'white'}" stroke-width="1"/></svg>') ${size/2} ${size/2}, auto`;
+    }
+}
+
+
+
+// 开始绘制
+function startDrawing(e) {
+    if (!canvas || !ctx) return;
+    
+    isDrawing = true;
+    const pos = getCanvasPosition(e);
+    lastX = pos.x;
+    lastY = pos.y;
+    
+    // 开始新的路径
+    ctx.beginPath();
+    ctx.moveTo(lastX, lastY);
+    
+   // 设置当前绘图样式
+    if (isPenActive) {
+        ctx.strokeStyle = currentPenColor;
+        ctx.lineWidth = currentPenSize;
+    } else {
+        // 默认设置
+        ctx.strokeStyle = defaultPenColor;
+        ctx.lineWidth = defaultPenSize;
+    }
+}
+
+// 绘制中
+function draw(e) {
+    if (!isDrawing || !canvas || !ctx) return;
+    
+    const pos = getCanvasPosition(e);
+    
+    if (isErasing) {
+        // 橡皮擦模式
+        ctx.save();
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.beginPath();
+        ctx.arc(pos.x, pos.y, eraserSize/2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    } else {
+        // 正常绘制模式
+        ctx.lineTo(pos.x, pos.y);
+        ctx.stroke();
+    }
+    
+    lastX = pos.x;
+    lastY = pos.y;
+}
+
+// 结束绘制
+function endDrawing() {
+    isDrawing = false;
+}
+
+// 获取画布坐标
+function getCanvasPosition(e) {
+    if (!canvas) return { x: 0, y: 0 };
+    
+    const rect = canvas.getBoundingClientRect();
+    let clientX, clientY;
+    
+    if (e.touches) {
+        // 触摸事件
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+    } else {
+        // 鼠标事件
+        clientX = e.clientX;
+        clientY = e.clientY;
+    }
+    
+    return {
+        x: clientX - rect.left,
+        y: clientY - rect.top
+    };
+}
+
+// 触摸开始
+function handleTouchStart(e) {
+    e.preventDefault();
+    if (!canvas) return;
+    
+    const touch = e.touches[0];
+    const mouseEvent = new MouseEvent('mousedown', {
+        clientX: touch.clientX,
+        clientY: touch.clientY
+    });
+    canvas.dispatchEvent(mouseEvent);
+}
+
+// 触摸移动
+function handleTouchMove(e) {
+    e.preventDefault();
+    if (!canvas) return;
+    
+    const touch = e.touches[0];
+    const mouseEvent = new MouseEvent('mousemove', {
+        clientX: touch.clientX,
+        clientY: touch.clientY
+    });
+    canvas.dispatchEvent(mouseEvent);
+}
+
+// 清空手写板
+function clearHandwriting() {
+    if (canvas && ctx) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+    // 确保退出橡皮擦模式
+    if (isErasing) {
+        toggleEraser();
+    }
+}
+
+
+// ========== DOM加载初始化 ==========
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM已加载');
     
@@ -36,7 +282,27 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('clearHandwriting')?.addEventListener('click', clearHandwriting);
     document.getElementById('showAnswer')?.addEventListener('click', showAnswer);
     document.getElementById('nextQuestion')?.addEventListener('click', nextQuestion);
-    
+
+   // 事件监听器中添加橡皮擦按钮事件
+    document.getElementById('eraserButton')?.addEventListener('click', toggleEraser);
+    document.getElementById('eraserSize')?.addEventListener('change', function() {
+         eraserSize = parseInt(this.value);
+         updateEraserCursor();
+         if (isErasing) {
+             canvas.style.cursor = eraserCursor;
+         }
+    }); 
+  // 在DOMContentLoaded事件监听器中添加手写笔按钮事件
+    document.getElementById('penButton')?.addEventListener('click', togglePen);
+    document.getElementById('penSize')?.addEventListener('change', function() {
+          currentPenSize = parseInt(this.value);
+          updatePenSettings();
+     });
+    document.getElementById('penColor')?.addEventListener('change', function() {
+          currentPenColor = this.value;
+         updatePenSettings();
+    });   
+
     // 初始化手写板（使用改进后的初始化方式）
     initHandwritingCanvas();
 });
@@ -78,16 +344,53 @@ function loadQuestions() {
 
 // 初始化应用
 function initializeApp() {
-    populateCategorySelect();
+    populateSubjectSelect();
+    populateCategorySelect(''); // 初始化题型选择为空
 }
 
-// 填充题型选择下拉框
-function populateCategorySelect() {
+// 科目选择填充函数
+function populateSubjectSelect() {
+    const select = document.getElementById('subjectSelect');
+    if (!select) return;
+    
+    // 获取所有不重复的科目(dalei)
+    const subjects = [...new Set(questions.map(q => q.dalei).filter(Boolean))];
+    select.innerHTML = '<option value="">选择科目</option>';
+    
+    subjects.forEach(subject => {
+        const option = document.createElement('option');
+        option.value = subject;
+        option.textContent = subject;
+        select.appendChild(option);
+    });
+
+    // 科目选择变化时更新题型选择
+    select.addEventListener('change', function() {
+        const selectedSubject = this.value;
+        populateCategorySelect(selectedSubject);
+        currentCategory = ''; // 重置当前题型
+        updateStats();
+    });
+}
+
+
+// 修改题型选择填充函数
+function populateCategorySelect(subject) {
     const select = document.getElementById('categorySelect');
     if (!select) return;
     
-    const categories = [...new Set(questions.map(q => q.dalei).filter(Boolean))];
     select.innerHTML = '<option value="">选择题型</option>';
+    
+    if (!subject) {
+        return; // 如果没有选择科目，不显示任何题型
+    }
+    
+    // 获取该科目下所有不重复的题型(dalei1)
+    const categories = [...new Set(questions
+        .filter(q => q.dalei === subject)
+        .map(q => q.dalei1)
+        .filter(Boolean))
+    ];
     
     categories.forEach(category => {
         const option = document.createElement('option');
@@ -96,22 +399,38 @@ function populateCategorySelect() {
         select.appendChild(option);
     });
     
+    // 题型选择变化时更新当前题型
     select.addEventListener('change', function() {
+        const selectedSubject = document.getElementById('subjectSelect').value;
         currentCategory = this.value;
-        currentQuestions = questions.filter(q => q.dalei === currentCategory);
+        currentQuestions = questions.filter(q => 
+            q.dalei === selectedSubject && 
+            q.dalei1 === currentCategory
+        );
         updateStats();
     });
 }
 
+
 // 开始学习
 function startLearning() {
-    if (!currentCategory) {
-        alert('请先选择题型！');
+    const selectedSubject = document.getElementById('subjectSelect').value;
+    if (!selectedSubject) {
+        alert('请先选择科目！');
         return;
     }
     
-    const unansweredQuestions = questions.filter(q => q.dalei === currentCategory && q.state !== '已学');
+    if (!currentCategory) {
+        alert('请选择题型！');
+        return;
+    }
     
+    const unansweredQuestions = questions.filter(q => 
+        q.dalei === selectedSubject && 
+        q.dalei1 === currentCategory && 
+        q.state !== '已学'
+    );
+  
     if (unansweredQuestions.length === 0) {
         alert('该题型所有题目已完成！');
         return;
@@ -177,6 +496,8 @@ function displayQuestion(question) {
     
     // 清空手写板
     clearHandwriting();
+
+
     
     // 确保手写板重新初始化
     initHandwritingCanvas(true);
@@ -184,14 +505,17 @@ function displayQuestion(question) {
 
 // 更新学习统计
 function updateStats() {
-    if (!currentCategory) return;
+    const selectedSubject = document.getElementById('subjectSelect').value;
+    if (!selectedSubject || !currentCategory) return;
     
     const learnedCount = document.getElementById('learnedCount');
     const totalCount = document.getElementById('totalCount');
     
     if (learnedCount && totalCount) {
-        // 获取当前题型的所有题目
-        const categoryQuestions = questions.filter(q => q.dalei === currentCategory);
+        const categoryQuestions = questions.filter(q => 
+            q.dalei === selectedSubject && 
+            q.dalei1 === currentCategory
+        );
         const total = categoryQuestions.length;
         const learned = categoryQuestions.filter(q => q.state === '已学').length;
         
@@ -203,16 +527,40 @@ function updateStats() {
 
 // 下一题
 function nextQuestion() {
-    if (currentQuestionIndex === -1 || currentQuestions.length === 0) return;
+    const selectedSubject = document.getElementById('subjectSelect').value;
     
-    // 更新题目状态
+    if (currentQuestionIndex === -1 || !selectedSubject || !currentCategory) {
+        alert('请先开始学习题目！');
+        return;
+    }
+    
+    // 标记当前题目为已学
     questions[currentQuestionIndex].state = '已学';
     
-    // 更新当前题型的问题列表状态
-    currentQuestions = questions.filter(q => q.dalei === currentCategory);
-
+    // 更新统计
     updateStats();
-    startLearning();
+    
+    // 获取当前科目和题型下未学习的题目
+    const unansweredQuestions = questions.filter(q => 
+        q.dalei === selectedSubject && 
+        q.dalei1 === currentCategory && 
+        q.state !== '已学'
+    );
+    
+    if (unansweredQuestions.length === 0) {
+        alert('该题型所有题目已完成！');
+        return;
+    }
+    
+    // 随机选择下一个未学习的题目
+    const randomIndex = Math.floor(Math.random() * unansweredQuestions.length);
+    const selectedQuestion = unansweredQuestions[randomIndex];
+    
+    // 更新当前题目索引
+    currentQuestionIndex = questions.findIndex(q => q.id === selectedQuestion.id);
+    
+    // 显示新题目
+    displayQuestion(questions[currentQuestionIndex]);
 }
 
 // 修改showAnswer函数，确保显示当前题目的答案
@@ -267,173 +615,31 @@ function escapeHtml(unsafe) {
 
 // 重置进度
 function resetProgress() {
+    const selectedSubject = document.getElementById('subjectSelect').value;
+    if (!selectedSubject) {
+        alert('请先选择科目！');
+        return;
+    }
+    
     if (!currentCategory) {
-        alert('请先选择题型！');
+        alert('请选择题型！');
         return;
     }
     
     if (confirm('确定要重置该题型的学习进度吗？所有已学题目将标记为未学。')) {
-        // 重置当前题型的所有题目状态
         questions.forEach(q => {
-            if (q.dalei === currentCategory) {
+            if (q.dalei === selectedSubject && q.dalei1 === currentCategory) {
                 q.state = '未学';
             }
         });
         
-        // 更新当前题型的问题列表
-        currentQuestions = questions.filter(q => q.dalei === currentCategory);
+        currentQuestions = questions.filter(q => 
+            q.dalei === selectedSubject && 
+            q.dalei1 === currentCategory
+        );
         
         updateStats();
         alert('进度已重置！');
     }
 }
 
-// 修改后的手写板初始化函数
-function initHandwritingCanvas() {
-    canvas = document.getElementById('handwritingCanvas');
-    if (!canvas) {
-        console.error('未找到手写板画布');
-        return;
-    }
-    
-    // 确保画布可见后再初始化
-    const observer = new IntersectionObserver((entries) => {
-        if (entries[0].isIntersecting) {
-            setupCanvas();
-            observer.disconnect();
-        }
-    });
-    observer.observe(canvas);
-    
-    function setupCanvas() {
-        ctx = canvas.getContext('2d');
-        
-        // 设置画布大小
-        function resizeCanvas() {
-            const container = document.querySelector('.handwriting-area');
-            if (!container) return;
-            
-            const rect = container.getBoundingClientRect();
-            canvas.width = rect.width;
-            canvas.height = rect.height;
-            
-            // 设置画布样式
-            ctx.strokeStyle = '#000';
-            ctx.lineWidth = 2;
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
-            
-            // 强制重绘
-            canvas.style.display = 'none';
-            canvas.offsetHeight; // 触发重排
-            canvas.style.display = 'block';
-        }
-        
-        // 初始调整大小
-        resizeCanvas();
-        
-        // 窗口大小改变时调整画布
-        window.addEventListener('resize', resizeCanvas);
-        
-        // 鼠标事件处理
-        canvas.addEventListener('mousedown', startDrawing);
-        canvas.addEventListener('mousemove', draw);
-        canvas.addEventListener('mouseup', endDrawing);
-        canvas.addEventListener('mouseout', endDrawing);
-        
-        // 触摸事件处理
-        canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
-        canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
-        canvas.addEventListener('touchend', endDrawing);
-        
-        console.log('手写板初始化完成');
-    }
-}
-
-// 开始绘制
-function startDrawing(e) {
-    if (!canvas || !ctx) return;
-    
-    isDrawing = true;
-    const pos = getCanvasPosition(e);
-    lastX = pos.x;
-    lastY = pos.y;
-    
-    // 开始新的路径
-    ctx.beginPath();
-    ctx.moveTo(lastX, lastY);
-}
-
-// 绘制中
-function draw(e) {
-    if (!isDrawing || !canvas || !ctx) return;
-    
-    const pos = getCanvasPosition(e);
-    
-    ctx.lineTo(pos.x, pos.y);
-    ctx.stroke();
-    
-    lastX = pos.x;
-    lastY = pos.y;
-}
-
-// 结束绘制
-function endDrawing() {
-    isDrawing = false;
-}
-
-// 获取画布坐标
-function getCanvasPosition(e) {
-    if (!canvas) return { x: 0, y: 0 };
-    
-    const rect = canvas.getBoundingClientRect();
-    let clientX, clientY;
-    
-    if (e.touches) {
-        // 触摸事件
-        clientX = e.touches[0].clientX;
-        clientY = e.touches[0].clientY;
-    } else {
-        // 鼠标事件
-        clientX = e.clientX;
-        clientY = e.clientY;
-    }
-    
-    return {
-        x: clientX - rect.left,
-        y: clientY - rect.top
-    };
-}
-
-// 触摸开始
-function handleTouchStart(e) {
-    e.preventDefault();
-    if (!canvas) return;
-    
-    const touch = e.touches[0];
-    const mouseEvent = new MouseEvent('mousedown', {
-        clientX: touch.clientX,
-        clientY: touch.clientY
-    });
-    canvas.dispatchEvent(mouseEvent);
-}
-
-// 触摸移动
-function handleTouchMove(e) {
-    e.preventDefault();
-    if (!canvas) return;
-    
-    const touch = e.touches[0];
-    const mouseEvent = new MouseEvent('mousemove', {
-        clientX: touch.clientX,
-        clientY: touch.clientY
-    });
-    canvas.dispatchEvent(mouseEvent);
-}
-
-// 清空手写板
-function clearHandwriting() {
-    if (canvas && ctx) {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-    }
-}
