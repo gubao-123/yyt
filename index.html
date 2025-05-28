@@ -40,12 +40,13 @@
             <button id="resetProgress">重置进度</button>          
             <button id="showAnswer">显示答案</button>
             <button id="nextQuestion">下一道</button>
+            <button id="skipQuestion">跳过</button>
             <!-- 新增手写笔按钮 -->
             <button id="penButton">手写笔</button>
             <select id="penSize">
-                 <option value="2">小</option>
-                 <option value="4" selected>中</option>
-                 <option value="6">大</option>
+                 <option value="1" selected>小</option>
+                 <option value="2">中</option>
+                 <option value="3">大</option>
             </select>
             <select id="penColor">
                  <option value="white" selected>白</option>
@@ -81,6 +82,8 @@
                     <!-- 参考答案将在这里显示 -->
                 </div>
             </div>
+            <!-- 新增批注画布 -->
+            <canvas id="annotationCanvas" class="annotation-canvas"></canvas>
          </div>
             
         <!-- 右侧区域 -->

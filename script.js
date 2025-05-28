@@ -11,25 +11,40 @@ let isErasing = false;
 let eraserSize = 40;
 let eraserCursor = null;
 let isPenActive = false;
-let currentPenSize = 4;
+let currentPenSize = 1;
 let currentPenColor = 'white';
-const defaultPenSize = 4;
+const defaultPenSize = 1;
 const defaultPenColor = 'white';
+let annotationCanvas, annotationCtx;
+let isAnnotating = false;
+let isAnnotationErasing = false;
 
 // ========== 工具函数 ==========
 function updateEraserCursor() {
     const size = eraserSize;
     eraserCursor = `url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}"><circle cx="${size/2}" cy="${size/2}" r="${size/2-1}" fill="white" stroke="black" stroke-width="1"/></svg>') ${size/2} ${size/2}, auto`;
+    
+    // 如果当前是橡皮擦模式，更新两个画布的光标
+    if (isErasing) {
+        canvas.style.cursor = eraserCursor;
+        if (annotationCanvas) {
+            annotationCanvas.style.cursor = eraserCursor;
+        }
+    }
 }
 
  // 橡皮擦功能函数
 function toggleEraser() {
     isErasing = !isErasing;
+    isAnnotationErasing = isErasing; // 同步批注橡皮擦状态
     const eraserButton = document.getElementById('eraserButton');
     
     if (isErasing) {
         eraserButton.classList.add('active');
         canvas.style.cursor = eraserCursor;
+        if (annotationCanvas) {
+            annotationCanvas.style.cursor = eraserCursor;
+        }
        // 确保退出笔模式使橡皮擦与手写笔兼容
         if (isPenActive) {
             togglePen();
@@ -37,8 +52,11 @@ function toggleEraser() {
     } else {
         eraserButton.classList.remove('active');
         canvas.style.cursor = 'crosshair';
-         }
-     }
+        if (annotationCanvas) {
+            annotationCanvas.style.cursor = 'crosshair';
+        }
+    }
+ }
 
 // ========== 手写板相关函数 ==========
 function initHandwritingCanvas() {
@@ -47,6 +65,9 @@ function initHandwritingCanvas() {
         console.error('未找到手写板画布');
         return;
     }
+    // 初始化批注画布
+    setupAnnotationCanvas();
+
     
     // 确保画布可见后再初始化
     const observer = new IntersectionObserver((entries) => {
@@ -106,6 +127,138 @@ function initHandwritingCanvas() {
     }
 }
 
+// ========== 批注画布相关函数 ==========
+function setupAnnotationCanvas() {
+    console.log('初始化批注画布...');
+    annotationCanvas = document.getElementById('annotationCanvas');
+    if (!annotationCanvas) {
+        console.error('未找到批注画布');
+        return;
+    }
+    
+    annotationCtx = annotationCanvas.getContext('2d');
+    console.log('批注画布上下文:', annotationCtx);
+    
+    // 设置画布大小
+    function resizeAnnotationCanvas() {
+        const container = document.querySelector('.question-container');
+        if (!container) return;
+        
+        const rect = container.getBoundingClientRect();
+        annotationCanvas.width = rect.width;
+        annotationCanvas.height = rect.height;
+    }
+    
+    // 初始调整大小
+    resizeAnnotationCanvas();
+    window.addEventListener('resize', resizeAnnotationCanvas);
+    
+    // 设置半透明笔触
+    annotationCtx.strokeStyle = 'rgba(255, 0, 0, 0.7)';
+    annotationCtx.lineWidth = 2;
+    annotationCtx.lineCap = 'round';
+    annotationCtx.lineJoin = 'round';
+    
+    // 事件监听
+    annotationCanvas.addEventListener('mousedown', startAnnotation);
+    annotationCanvas.addEventListener('mousemove', drawAnnotation);
+    annotationCanvas.addEventListener('mouseup', endAnnotation);
+    annotationCanvas.addEventListener('mouseout', endAnnotation);
+    
+    // 触摸事件
+    annotationCanvas.addEventListener('touchstart', handleAnnotationTouchStart, { passive: false });
+    annotationCanvas.addEventListener('touchmove', handleAnnotationTouchMove, { passive: false });
+    annotationCanvas.addEventListener('touchend', endAnnotation);
+}
+
+// 批注相关函数
+function startAnnotation(e) {
+    if (!annotationCanvas || !annotationCtx) return;
+    
+    isAnnotating = true;
+    const pos = getAnnotationPosition(e);
+    lastX = pos.x;
+    lastY = pos.y;
+    
+    // 应用当前设置（无论笔是否激活）
+    annotationCtx.strokeStyle = isPenActive ? currentPenColor : defaultPenColor;
+    annotationCtx.globalAlpha = 0.7;
+    annotationCtx.lineWidth = isPenActive ? currentPenSize : defaultPenSize;
+    
+    annotationCtx.beginPath();
+    annotationCtx.moveTo(lastX, lastY);
+}
+
+function drawAnnotation(e) {
+    if (!isAnnotating || !annotationCanvas || !annotationCtx) return;
+    
+    const pos = getAnnotationPosition(e);
+    
+    if (isAnnotationErasing) {
+        // 橡皮擦模式
+        annotationCtx.save();
+        annotationCtx.globalCompositeOperation = 'destination-out';
+        annotationCtx.beginPath();
+        annotationCtx.arc(pos.x, pos.y, eraserSize/2, 0, Math.PI * 2);
+        annotationCtx.fill();
+        annotationCtx.restore();
+    } else {
+        // 正常绘制模式
+        annotationCtx.lineTo(pos.x, pos.y);
+        annotationCtx.stroke();
+    }
+    
+    lastX = pos.x;
+    lastY = pos.y;
+}
+
+function endAnnotation() {
+    isAnnotating = false;
+}
+
+function getAnnotationPosition(e) {
+    if (!annotationCanvas) return { x: 0, y: 0 };
+    
+    const rect = annotationCanvas.getBoundingClientRect();
+    let clientX, clientY;
+    
+    if (e.touches) {
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+    } else {
+        clientX = e.clientX;
+        clientY = e.clientY;
+    }
+    
+    return {
+        x: clientX - rect.left,
+        y: clientY - rect.top
+    };
+}
+
+function handleAnnotationTouchStart(e) {
+    e.preventDefault();
+    const touch = e.touches[0];
+    const mouseEvent = new MouseEvent('mousedown', {
+        clientX: touch.clientX,
+        clientY: touch.clientY
+    });
+    annotationCanvas.dispatchEvent(mouseEvent);
+}
+
+function handleAnnotationTouchMove(e) {
+    e.preventDefault();
+    const touch = e.touches[0];
+    const mouseEvent = new MouseEvent('mousemove', {
+        clientX: touch.clientX,
+        clientY: touch.clientY
+    });
+    annotationCanvas.dispatchEvent(mouseEvent);
+}
+
+
+
+
 // 手写笔功能函数
 function togglePen() {
     isPenActive = !isPenActive;
@@ -113,32 +266,54 @@ function togglePen() {
     
     if (isPenActive) {
         penButton.classList.add('active');
-        // 应用选择的笔设置
-        updatePenSettings();
-        // 确保退出橡皮擦模式
-        if (isErasing) {
-            toggleEraser();
-        }
+        // 应用当前选择的笔设置
+        applyPenSettings();
     } else {
         penButton.classList.remove('active');
         // 恢复默认设置
-        ctx.strokeStyle = defaultPenColor;
-        ctx.lineWidth = defaultPenSize;
-        canvas.style.cursor = 'crosshair';
+        resetPenSettings();
+    }
+    
+    // 确保退出橡皮擦模式
+    if (isErasing) {
+        toggleEraser();
     }
 }
 
-function updatePenSettings() {
-    if (isPenActive) {
-        ctx.strokeStyle = currentPenColor;
-        ctx.lineWidth = currentPenSize;
-        // 更新光标预览
-        const size = Math.max(currentPenSize * 2, 10); // 最小10px
-        canvas.style.cursor = `url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}"><circle cx="${size/2}" cy="${size/2}" r="${currentPenSize/2}" fill="${currentPenColor}" stroke="${currentPenColor === 'white' ? 'black' : 'white'}" stroke-width="1"/></svg>') ${size/2} ${size/2}, auto`;
+// 新增函数：应用当前笔设置
+function applyPenSettings() {
+    ctx.strokeStyle = currentPenColor;
+    ctx.lineWidth = currentPenSize;
+    if (annotationCtx) {
+        annotationCtx.strokeStyle = currentPenColor;
+        annotationCtx.globalAlpha = 0.7;
+        annotationCtx.lineWidth = currentPenSize;
     }
+    updatePenCursor();
 }
 
+// 新增函数：重置笔设置为默认
+function resetPenSettings() {
+    ctx.strokeStyle = defaultPenColor;
+    ctx.lineWidth = defaultPenSize;
+    if (annotationCtx) {
+        annotationCtx.strokeStyle = defaultPenColor;
+        annotationCtx.globalAlpha = 0.7;
+        annotationCtx.lineWidth = defaultPenSize;
+    }
+    updatePenCursor();
+}
 
+// 新增函数：更新笔光标
+function updatePenCursor() {
+    const size = Math.max(currentPenSize * 2, 10);
+    const cursorStyle = `url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}"><circle cx="${size/2}" cy="${size/2}" r="${currentPenSize/2}" fill="${isPenActive ? currentPenColor : defaultPenColor}" stroke="${(isPenActive ? currentPenColor : defaultPenColor) === 'white' ? 'black' : 'white'}" stroke-width="1"/></svg>') ${size/2} ${size/2}, auto`;
+    
+    canvas.style.cursor = cursorStyle;
+    if (annotationCanvas) {
+        annotationCanvas.style.cursor = cursorStyle;
+    }
+}
 
 // 开始绘制
 function startDrawing(e) {
@@ -149,20 +324,14 @@ function startDrawing(e) {
     lastX = pos.x;
     lastY = pos.y;
     
-    // 开始新的路径
+    // 应用当前设置（无论笔是否激活）
+    ctx.strokeStyle = isPenActive ? currentPenColor : defaultPenColor;
+    ctx.lineWidth = isPenActive ? currentPenSize : defaultPenSize;
+    
     ctx.beginPath();
     ctx.moveTo(lastX, lastY);
-    
-   // 设置当前绘图样式
-    if (isPenActive) {
-        ctx.strokeStyle = currentPenColor;
-        ctx.lineWidth = currentPenSize;
-    } else {
-        // 默认设置
-        ctx.strokeStyle = defaultPenColor;
-        ctx.lineWidth = defaultPenSize;
-    }
 }
+
 
 // 绘制中
 function draw(e) {
@@ -247,9 +416,15 @@ function clearHandwriting() {
     if (canvas && ctx) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
     }
+    if (annotationCanvas && annotationCtx) {
+        annotationCtx.clearRect(0, 0, annotationCanvas.width, annotationCanvas.height);
+    }
     // 确保退出橡皮擦模式
     if (isErasing) {
         toggleEraser();
+    }
+    if (isAnnotationErasing) {
+        isAnnotationErasing = false;
     }
 }
 
@@ -282,7 +457,7 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('clearHandwriting')?.addEventListener('click', clearHandwriting);
     document.getElementById('showAnswer')?.addEventListener('click', showAnswer);
     document.getElementById('nextQuestion')?.addEventListener('click', nextQuestion);
-
+    document.getElementById('skipQuestion')?.addEventListener('click', skipQuestion);
    // 事件监听器中添加橡皮擦按钮事件
     document.getElementById('eraserButton')?.addEventListener('click', toggleEraser);
     document.getElementById('eraserSize')?.addEventListener('change', function() {
@@ -290,18 +465,27 @@ document.addEventListener('DOMContentLoaded', function() {
          updateEraserCursor();
          if (isErasing) {
              canvas.style.cursor = eraserCursor;
+             if (annotationCanvas) {
+                 annotationCanvas.style.cursor = eraserCursor;
+              }
          }
     }); 
   // 在DOMContentLoaded事件监听器中添加手写笔按钮事件
     document.getElementById('penButton')?.addEventListener('click', togglePen);
     document.getElementById('penSize')?.addEventListener('change', function() {
-          currentPenSize = parseInt(this.value);
-          updatePenSettings();
+        currentPenSize = parseInt(this.value);
+        if (isPenActive) {
+            applyPenSettings();
+        }
+       updatePenCursor(); // 即使笔未激活也更新光标预览
+    });
+   document.getElementById('penColor')?.addEventListener('change', function() {
+       currentPenColor = this.value;
+       if (isPenActive) {
+          applyPenSettings();
+       }
+       updatePenCursor(); // 即使笔未激活也更新光标预览
      });
-    document.getElementById('penColor')?.addEventListener('change', function() {
-          currentPenColor = this.value;
-         updatePenSettings();
-    });   
 
     // 初始化手写板（使用改进后的初始化方式）
     initHandwritingCanvas();
@@ -522,6 +706,38 @@ function updateStats() {
         learnedCount.textContent = learned;
         totalCount.textContent = total;
     }
+}
+
+// 跳过函数
+function skipQuestion() {
+    const selectedSubject = document.getElementById('subjectSelect').value;
+    
+    if (!selectedSubject || !currentCategory) {
+        alert('请先选择科目和题型！');
+        return;
+    }
+    
+    // 获取当前科目和题型下未学习的题目
+    const unansweredQuestions = questions.filter(q => 
+        q.dalei === selectedSubject && 
+        q.dalei1 === currentCategory && 
+        q.state !== '已学'
+    );
+    
+    if (unansweredQuestions.length === 0) {
+        alert('该题型所有题目已完成！');
+        return;
+    }
+    
+    // 随机选择下一个未学习的题目（不改变当前题目的state）
+    const randomIndex = Math.floor(Math.random() * unansweredQuestions.length);
+    const selectedQuestion = unansweredQuestions[randomIndex];
+    
+    // 更新当前题目索引
+    currentQuestionIndex = questions.findIndex(q => q.id === selectedQuestion.id);
+    
+    // 显示新题目
+    displayQuestion(questions[currentQuestionIndex]);
 }
 
 

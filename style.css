@@ -126,6 +126,16 @@ body {
     width: 60px;
 }
 
+/* 添加跳过按钮样式 */
+#skipQuestion {
+    background-color: #ff9800; /* 橙色 */
+    color: white;
+}
+
+#skipQuestion:hover {
+    background-color: #e68a00;
+}
+
 /* 添加手写笔按钮样式 */
 #penButton {
     background-color: #2196F3;
@@ -161,6 +171,7 @@ body {
     border-radius: 5px;
     padding: 15px;
     overflow: auto;
+    position: relative; /* 添加相对定位 */
 }
 
 /* 右侧区域 - 占75%宽度 */
@@ -185,11 +196,24 @@ body {
     margin-bottom: 5px;
 }
 
+/* 批注画布样式 */
+.annotation-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: auto; /* 确保可以交互 */
+    z-index: 10; /* 确保在最上层 */
+}
+
 /* 调整问题内容布局 */
 .question-content {
     display: flex;
     flex-direction: column;
     gap: 15px;
+    position: relative; /* 确保内容区域可以穿透点击 */
+    z-index: 1;/* 确保内容区域在批注画布下面*/
 }
 
 .question-text-and-image {
